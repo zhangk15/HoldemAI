@@ -128,7 +128,7 @@ def get_pattern(five_cards):
     else:
         return HIGH_CARD
 
-def compare(own, opponent):
+def pattern_compare(own, opponent):
     own_pattern = get_pattern(own)
     opp_pattern = get_pattern(opponent)
     if own_pattern != opp_pattern:
@@ -196,13 +196,68 @@ def test_patter_and_compare():
 
 ################################################################################
 
-def probability(start, public):
-    public_num = len(public)
-    own_card = [0] * 7
-    own_card = public + start + [0] * (5-public_num)
+def transfer_raw_card(cards):
+    return [map(lambda x: card_map.get(x[1]), cards),
+            map(lambda x: suits_map.get(x[0]), cards)]
 
-    opponent_card = public + [0] * (7 - public_num)
+def search_card(hold, rank, suit):
+    for i in xrange(len(hold)):
+        if rank == hold[0][i] and suit == hold[1][i]:
+            return True
+    return False
+
+def random_card(hold):
+    while True:
+        rank = random.randint(0, 12)
+        suit = 1 << random.randint(0, 3)
+        if not search_card(hold, rank, suit):
+            return rank, suit
+
+def start_table():
+    mat = []
+    for i in xrange(13):
+        mat.append([])
+
+def dump_all_cards_table():
+    import itertools
+    #import pickle
+    import time
+    print time.time()
+    total = []
+    for five in itertools.combinations(range(52), 5):
+        total.append( (map(lambda x: x%13, five),
+                       map(lambda x: 1 << (x/13), five)) )
+    print time.time()
+    #pickle.dump(total, open('all_cards_table', 'wb'), 2)
+
+def calc_value_table():
+    import itertools
+    total = []
+    for five in itertools.combinations(range(52), 5):
+        total.append( (map(lambda x: x%13, five),
+                       map(lambda x: 1 << (x/13), five)) )
+    total.sort(cmp=pattern_compare)
+    for cards in total:
+        print cards
+
+def probability(start, public, iterate=1):
+    public_num = len(public[0])
+    total = [[],[]]
+    total[0] = start[0] + public[0] + [0] * (7 - public_num)
+    total[1] = start[1] + public[1] + [0] * (7 - public_num)
+
+    win = 0
+    for iterator in xrange(iterate):
+        for i in xrange(2+public_num, 9):
+            total[0][i], total[1][i] = random_card(total)
 
 if __name__ == '__main__':
-    test_patter_and_compare()
+    pass
+    #test_patter_and_compare()
+
+    start = [('CLUBS', 'A'), ('HEARTS', '2')]
+    hold = transfer_raw_card(start)
+    probability(hold, [[],[]])
+    #calc_value_table()
+    dump_all_cards_table()
 
