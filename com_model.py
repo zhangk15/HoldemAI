@@ -66,14 +66,15 @@ class game_link:
 		self.__send('check ' + action + '\n')
 	
 	def get_msg(self):
-		raw_msg = self.__recv()
-		print('RAW_MSG:')
-		print(raw_msg)
-		temp = com_handle.patten_head.findall(raw_msg)
-		print('MEG_QUEUE_ADD:')
-		for one_msg in temp:
-			print(one_msg)
-			self.__msg_queue.append(one_msg)
+		if len(self.__msg_queue) == 0:
+			raw_msg = self.__recv()
+			print('RAW_MSG:')
+			print(raw_msg)
+			temp = com_handle.patten_head.findall(raw_msg)
+			#print('MEG_QUEUE_ADD:')
+			for one_msg in temp:
+				#print(one_msg)
+				self.__msg_queue.append(one_msg)
 
 		if len(self.__msg_queue) != 0:
 			return self.__msg_queue.popleft()
@@ -87,6 +88,7 @@ def main(argv):
 	try:
 		target_addr = (argv[1], int(argv[2]))
 		self_addr = (argv[3], int(argv[4]))
+		pid = argv[5]
 	except IndexError:
 		print("Wrong arg!")
 		return
@@ -97,67 +99,92 @@ def main(argv):
 		return
 	game_conn.msg_reg(argv[5], 'HL')
 	print("Connected. Game will start soon!!!")	
-	raw_msg = game_conn.get_msg()
-	print("seat:")
-	print(com_handle.patten_seat.findall(raw_msg[2]))
-	print('')
 
 	raw_msg = game_conn.get_msg()
-	print("blind:")
-	#print(raw_msg)
-	#print("result:")
-	print(com_handle.get_bet(raw_msg[2]))
-	print('')
-
-	raw_msg = game_conn.get_msg()
-	print("hold cards:")
-	#print(raw_msg)
-	#print('result:')
-	print(com_handle.get_cards(raw_msg[2]))
-	print('')
-
-	raw_msg = game_conn.get_msg()
-	while raw_msg[1] == 'inquire':
-		print("users action:")
+	while raw_msg[0] != 'game-over \n' or len(raw_msg[0]) == 0:
+		print("seat:")
+		print(com_handle.patten_seat.findall(raw_msg[2]))
+		print('')
+	
+		raw_msg = game_conn.get_msg()
+		print("blind:")
 		#print(raw_msg)
-		print(com_handle.get_userinfo(raw_msg[2]))
-		game_conn.msg_action('fold')
+		#print("result:")
+		print(com_handle.get_bet(raw_msg[2]))
 		print('')
 
 		raw_msg = game_conn.get_msg()
-	print("flop cards:")
-	#print(raw_msg)
-	print(com_handle.get_cards(raw_msg[2]))
-	print('')
+		print("hold cards:")
+		#print(raw_msg)
+		#print('result:')
+		print(com_handle.get_cards(raw_msg[2]))
+		print('')
 
-	raw_msg = game_conn.get_msg()
-	print("turn cards:")
-	#print(raw_msg)
-	print(com_handle.get_cards(raw_msg[2]))
-	print('')
+		raw_msg = game_conn.get_msg()
+		while raw_msg[1] == 'inquire':
+			print("users action:")
+			#print(raw_msg)
+			print(com_handle.get_userinfo(raw_msg[2]))
+			game_conn.msg_action('fold')
+			print('')
+
+			raw_msg = game_conn.get_msg()
+		print("flop cards:")
+		#print(raw_msg)
+		print(com_handle.get_cards(raw_msg[2]))
+		print('')
 		
-	raw_msg = game_conn.get_msg()
-	print("river cards:")
-	#print(raw_msg)
-	print(com_handle.get_cards(raw_msg[2]))
-	print('')
+		raw_msg = game_conn.get_msg()
+		while raw_msg[1] == 'inquire':
+			print("users action:")
+			#print(raw_msg)
+			print(com_handle.get_userinfo(raw_msg[2]))
+			game_conn.msg_action('fold')
+			print('')
 
-	raw_msg = game_conn.get_msg()
-	print("shutdown:")
-	#print(raw_msg)
-	print(com_handle.get_cards(raw_msg[2]))
-	print(com_handle.patten_shutdown_rank.findall(raw_msg[2]))
-	print('')
+			raw_msg = game_conn.get_msg()
+		print("turn cards:")
+		#print(raw_msg)
+		print(com_handle.get_cards(raw_msg[2]))
+		print('')
+		
+		raw_msg = game_conn.get_msg()
+		while raw_msg[1] == 'inquire':
+			print("users action:")
+			#print(raw_msg)
+			print(com_handle.get_userinfo(raw_msg[2]))
+			game_conn.msg_action('fold')
+			print('')
+			
+			raw_msg = game_conn.get_msg()
+		print("river cards:")
+		#print(raw_msg)
+		print(com_handle.get_cards(raw_msg[2]))
+		print('')
+		
+		raw_msg = game_conn.get_msg()
+		while raw_msg[1] == 'inquire':
+			print("users action:")
+			#print(raw_msg)
+			print(com_handle.get_userinfo(raw_msg[2]))
+			game_conn.msg_action('fold')
+			print('')
+	
+			raw_msg = game_conn.get_msg()
+		print("shutdown:")
+		#print(raw_msg)
+		print(com_handle.get_cards(raw_msg[2]))
+		print(com_handle.patten_shutdown_rank.findall(raw_msg[2]))
+		print('')
+	
+		raw_msg = game_conn.get_msg()
+		print("win:")
+		print(raw_msg)
+		print(com_handle.get_bet(raw_msg[2]))
+		print('')
 
-	raw_msg = game_conn.get_msg()
-	print("win:")
-	print(raw_msg)
-	print(com_handle.get_bet(raw_msg[2]))
-	print('')
-
-	raw_msg = game_conn.get_msg()
-	if raw_msg[0] == "game-over \n":
-		print("\nGame over!")
+		raw_msg = game_conn.get_msg()
+	print("\nGame over!")
 
 
 if __name__ == '__main__':
