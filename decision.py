@@ -48,7 +48,7 @@ def is_straight(five_ranks):
     if five_ranks[0]==0 and five_ranks[1]==1 and five_ranks[2]==2 and five_ranks[3]==3 and five_ranks[4]==12:
         return True
     for i in xrange(1, len(five_ranks)):
-        if abs(five_ranks[i] - five_ranks[i-1]) != 1:
+        if five_ranks[i] - five_ranks[i-1] != 1:
             return False
     return True
 
@@ -129,8 +129,8 @@ def get_pattern(five_cards):
         return HIGH_CARD
 
 def pattern_compare(own, opponent):
-    own_pattern = get_pattern(own)
-    opp_pattern = get_pattern(opponent)
+    own_pattern = own[2]
+    opp_pattern = opponent[2]
     if own_pattern != opp_pattern:
         return own_pattern - opp_pattern
 
@@ -141,6 +141,8 @@ def pattern_compare(own, opponent):
             return own[0][2] - opponent[0][2]
         else:
             return own[0][0] - opponent[0][0] + own[0][4] - opponent[0][4]
+    elif HIGH_CARD == own_pattern:
+        return cmp(own, opponent)
     else:
         return cmp( ranks_identify(own[0]), ranks_identify(opponent[0]) )
 
@@ -194,70 +196,104 @@ def test_patter_and_compare():
     test_compare(two_pairs)
     test_compare(one_pair)
 
+    # NOTICE: you should not call the patter_compare
+
 ################################################################################
-
-def transfer_raw_card(cards):
-    return [map(lambda x: card_map.get(x[1]), cards),
-            map(lambda x: suits_map.get(x[0]), cards)]
-
-def search_card(hold, rank, suit):
-    for i in xrange(len(hold)):
-        if rank == hold[0][i] and suit == hold[1][i]:
-            return True
-    return False
-
-def random_card(hold):
-    while True:
-        rank = random.randint(0, 12)
-        suit = 1 << random.randint(0, 3)
-        if not search_card(hold, rank, suit):
-            return rank, suit
-
-def start_table():
-    mat = []
-    for i in xrange(13):
-        mat.append([])
-
-def dump_all_cards_table():
-    import itertools
-    #import pickle
-    import time
-    print time.time()
-    total = []
-    for five in itertools.combinations(range(52), 5):
-        total.append( (map(lambda x: x%13, five),
-                       map(lambda x: 1 << (x/13), five)) )
-    print time.time()
-    #pickle.dump(total, open('all_cards_table', 'wb'), 2)
 
 def calc_value_table():
     import itertools
+    import time
+    print 'begin generating the table', time.time()
     total = []
     for five in itertools.combinations(range(52), 5):
-        total.append( (map(lambda x: x%13, five),
-                       map(lambda x: 1 << (x/13), five)) )
+        ranks = map(lambda x: x%13, five)
+        suits = map(lambda x: 1<<(x/13), five)
+        ranks.sort()
+        pattern = get_pattern((ranks, suits))
+        total.append( (ranks, suits, pattern) )
+
+    print 'finish generating the table, begin sorting', time.time()
     total.sort(cmp=pattern_compare)
-    for cards in total:
-        print cards
+    print 'finish sorting the table, begin generating the value map', time.time()
 
-def probability(start, public, iterate=1):
-    public_num = len(public[0])
-    total = [[],[]]
-    total[0] = start[0] + public[0] + [0] * (7 - public_num)
-    total[1] = start[1] + public[1] + [0] * (7 - public_num)
+    suited_map = {}
+    unsuited_map = {}
+    for index in xrange(len(total)):
+        product = reduce(operator.mul, map(rank_to_primer.get, total[index][0]))
+        if is_suited(total[index][1]):
+            suited_map[product] = index
+        else:
+            unsuited_map[product] = index
+    print 'finish generating the value map', time.time()
+    return suited_map, unsuited_map
 
-    win = 0
+################################################################################
+
+def transfer_raw_card(cards):
+    return [(cards_map[x[1]], suits_map[x[0]]) for x in cards]
+
+def random_card(hold):
+    while True:
+        card = (random.randint(0, 12), 1<<random.randint(0, 3))
+        if not card in hold:
+            return card
+
+def choose_best_value(seven_cards, value_map):
+    from itertools import combinations
+
+    max_value = -1
+    for five in combinations(seven_cards, 5):
+        suited = five[0][1] & five[1][1] & five[2][1] & five[3][1] & five[4][1]
+        product = (rank_to_primer[five[0][0]] * rank_to_primer[five[1][0]] * rank_to_primer[five[2][0]]
+                    * rank_to_primer[five[3][0]] * rank_to_primer[five[4][0]])
+        if suited:
+            max_value = max(max_value, value_map[0][product])
+        else:
+            max_value = max(max_value, value_map[1][product]) 
+    return max_value
+
+def probability(start, public, opponent_num, value_map, iterate=500):
+    public_num = len(public)
+    total = []
+    total = start + public + [ (-1,-1) for i in xrange(100-public_num) ]
+
+    opponents = [-1] * opponent_num
+
+    win = 0; tie = 0
     for iterator in xrange(iterate):
-        for i in xrange(2+public_num, 9):
-            total[0][i], total[1][i] = random_card(total)
+        for i in xrange(2+public_num, 7 + opponent_num*2):
+            total[i] = random_card(total[:i])
+
+        own = choose_best_value(total[:7], value_map)
+
+        max_opp = -1
+        for i in xrange(opponent_num):
+            max_opp = max(max_opp, choose_best_value(total[2:7] + total[7+i:9+i], value_map))
+
+        if own > max_opp:
+            win += 1
+        elif own == max_opp:
+            tie += 1
+
+    return float(win*2 + tie) / (iterate * 2)
 
 if __name__ == '__main__':
-    pass
     #test_patter_and_compare()
 
-    start = [('CLUBS', 'A'), ('HEARTS', '2')]
-    hold = transfer_raw_card(start)
-    probability(hold, [[],[]])
-    #calc_value_table()
-    dump_all_cards_table()
+    #value_map = calc_value_table()
+    import pickle
+    #pickle.dump(value_map, open('value_map', 'wb'), 2)
+    value_map = pickle.load(open('value_map', 'rb'))
+
+    start = [(11, 1), (11, 2)]
+    public = [(0, 1), (3, 4), (5, 8), (7, 4), (9, 8)]
+    import time
+    old_clock = time.clock()
+    #print probability(start, [[4, 6, 8, 9, 11], [1, 2, 4, 8, 2]], value_map)
+    print probability(start, [], 7, value_map)
+    print time.clock() - old_clock
+    old_clock = time.clock()
+
+    print probability(start, public, 7, value_map)
+    print time.clock() - old_clock
 
