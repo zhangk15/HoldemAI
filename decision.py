@@ -7,6 +7,7 @@ Email: ml_143@sina.com
 
 import random
 import operator
+import pickle
 
 HIGH_CARD   = 0
 ONE_PAIR    = 1
@@ -31,12 +32,15 @@ rank_to_primer = {
         9:29, 10:31, 11:37, 12:41,
         }
 
+rank_to_primer = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41]
+
 suits_map = {
         'SPADES':1,
         'HEARTS':2,
         'CLUBS':4,
         'DIAMONDS':8 }
 
+g_count = 0
 ################################################################################
 
 def is_suited(five_suits):
@@ -112,8 +116,7 @@ def get_pattern(five_cards):
     if is_straight(five_cards[0]):
         return STRAIGHT
 
-    five_primers = map(rank_to_primer.get, five_cards[0])
-    product = reduce(operator.mul, five_primers)
+    product = reduce(lambda x,c: x*rank_to_primer[c], five_cards[0], 1)
 
     if is_four_kind(five_primers, product):
         return FOUR_KIND
@@ -219,13 +222,49 @@ def calc_value_table():
     suited_map = {}
     unsuited_map = {}
     for index in xrange(len(total)):
-        product = reduce(operator.mul, map(rank_to_primer.get, total[index][0]))
+        product = reduce(lambda x,c: x*rank_to_primer[c], total[index][0])
         if is_suited(total[index][1]):
             suited_map[product] = index
         else:
             unsuited_map[product] = index
     print 'finish generating the value map', time.time()
-    return suited_map, unsuited_map
+
+    value_map = (suited_map, unsuited_map)
+    pickle.dump(value_map, open('value_map', 'wb'), 2)
+
+def calc_head_table(value_map, opponent_num, iterate=1000):
+    head_table_suited = [[0]*13 for i in xrange(13)]
+    head_table_unsuited = [[0]*13 for i in xrange(13)]
+
+    for i in xrange(13):
+        start = [(i, 1), (i, 2)]
+        head_table_unsuited[i][i] = probability(start, [], opponent_num, value_map, iterate)
+
+        for j in xrange(i+1, 13):
+            start = [(i, 1), (j, 1)]
+            head_table_suited[i][j] = probability(start, [], opponent_num, value_map, iterate)
+            head_table_suited[j][i] = head_table_suited[i][j]
+
+            start = [(i, 1), (j, 2)]
+            head_table_unsuited[i][j] = probability(start, [], opponent_num, value_map, iterate)
+            head_table_unsuited[j][i] = head_table_unsuited[i][j]
+
+    return (head_table_suited, head_table_unsuited)
+
+def dump_head_table(value_map, opponent_num, iterate=1000):
+    old_clock = time.clock()
+    head_table = []
+    for i in xrange(1, 8):
+        head_table.append( calc_head_table(value_map, i, iterate) )
+        print time.clock() - old_clock
+
+    pickle.dump(head_table, open('head_table', 'wb'), 2)
+
+def start_probability(start, opponent_num, head_table):
+    if start[0][1] == start[1][1]:
+        return head_table[opponent_num-1][0][start[0][0]][start[1][0]]
+    else:
+        return head_table[opponent_num-1][1][start[0][0]][start[1][0]]
 
 ################################################################################
 
@@ -240,6 +279,7 @@ def random_card(hold):
 
 def choose_best_value(seven_cards, value_map):
     from itertools import combinations
+    global g_count
 
     max_value = -1
     for five in combinations(seven_cards, 5):
@@ -250,9 +290,10 @@ def choose_best_value(seven_cards, value_map):
             max_value = max(max_value, value_map[0][product])
         else:
             max_value = max(max_value, value_map[1][product]) 
+        g_count += 1
     return max_value
 
-def probability(start, public, opponent_num, value_map, iterate=500):
+def probability(start, public, opponent_num, value_map, iterate=1000):
     public_num = len(public)
     total = []
     total = start + public + [ (-1,-1) for i in xrange(100-public_num) ]
@@ -265,7 +306,6 @@ def probability(start, public, opponent_num, value_map, iterate=500):
             total[i] = random_card(total[:i])
 
         own = choose_best_value(total[:7], value_map)
-
         max_opp = -1
         for i in xrange(opponent_num):
             max_opp = max(max_opp, choose_best_value(total[2:7] + total[7+i:9+i], value_map))
@@ -277,23 +317,33 @@ def probability(start, public, opponent_num, value_map, iterate=500):
 
     return float(win*2 + tie) / (iterate * 2)
 
+################################################################################
+
+def make_decision(win_per, odds, *args):
+    E = win_per * odds
+
+################################################################################
+
+value_map = pickle.load(open('value_map', 'rb'))
+head_table = pickle.load(open('head_table', 'rb'))
+
 if __name__ == '__main__':
-    #test_patter_and_compare()
 
-    #value_map = calc_value_table()
-    import pickle
-    #pickle.dump(value_map, open('value_map', 'wb'), 2)
-    value_map = pickle.load(open('value_map', 'rb'))
-
-    start = [(11, 1), (11, 2)]
+    start = [(11, 1), (8, 2)]
     public = [(0, 1), (3, 4), (5, 8), (7, 4), (9, 8)]
-    import time
-    old_clock = time.clock()
-    #print probability(start, [[4, 6, 8, 9, 11], [1, 2, 4, 8, 2]], value_map)
-    print probability(start, [], 7, value_map)
-    print time.clock() - old_clock
-    old_clock = time.clock()
 
-    print probability(start, public, 7, value_map)
+    import time
+
+    old_clock = time.clock()
+    print 'probability', probability(start, [], 7, value_map, 1000)
     print time.clock() - old_clock
+
+    old_clock = time.clock()
+    print 'probability', probability(start, public, 7, value_map, 1000)
+    print time.clock() - old_clock
+
+    #print start_probability(start, 7, head_table)
+    #print probability(start, [], 7, value_map)
+
+    print g_count
 
