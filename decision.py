@@ -318,36 +318,32 @@ def probability(start, public, opponent_num, value_map, iterate=1000):
 
 #def calc_fold_probability(win_per, total_info):
 def calc_fold_probability(E):
-    if E < 0.8:
-        return 0.95
+    if E < 0.6:
+        return 1.0
     elif E < 1.0:
-        return 0.80
-    elif E < 1.3:
-        return 0.10
+        return 1.0 - (E-0.6) * 0.25
+    elif E < 1.25:
+        return 1.0 / ((E - 1.0) * 40.0 + 0.11)
+    elif E < 1.75:
+        return 0.1 - (E - 1.25) * 0.2
     else:
-        return 0.02
+        return 0.0
 
 #def calc_call_probability(win_per, total_info):
 def calc_call_probability(E):
-    if E < 0.8:
-        return 0.01
-    elif E < 1.0:
-        return 0.05
-    elif E < 1.3:
-        return 0.55
+    if E < 1.0:
+        return 1.0
+    elif E < 1.5:
+        return 2.0 - E
     else:
-        return 0.35
+        return 0.5
 
 #def calc_raise_jetton(win_per, total_info):
 def calc_raise_jetton(E):
-    if E < 0.8:
-        return 1
-    elif E < 1.0:
-        return 1
-    elif E < 1.3:
-        return 40 * E
+    if E < 1.0:
+        return 1.0
     else:
-        return 100 * E 
+        return E * 40
 
 def make_probability_estimate(win_per, total_info):
     own_info = total_info.player_list[total_info.self_id]
@@ -360,7 +356,7 @@ def make_probability_estimate(win_per, total_info):
     if c < p:
         return 'fold'
 
-    c += p
+    c = random.random()
     p = calc_call_probability(E)
     if c < p:
         return 'call'
@@ -403,3 +399,4 @@ if __name__ == '__main__':
     #print start_probability(start, 7, head_table)
     #print probability(start, [], 7, value_map)
 
+    #print make_probability_estimate(0, 0)
