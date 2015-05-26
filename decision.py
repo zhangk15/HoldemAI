@@ -9,6 +9,8 @@ import random
 import operator
 import pickle
 
+import com_model
+
 HIGH_CARD   = 0
 ONE_PAIR    = 1
 TWO_PAIRS   = 2
@@ -319,8 +321,36 @@ def probability(start, public, opponent_num, value_map, iterate=1000):
 
 ################################################################################
 
-def make_decision(win_per, odds, *args):
+def make_decision(win_per, total_info):
+    own_info = total_info.player_list[total_info.self_id]
+
+    odds = float(own_info.total + own_info.call_jetton) / own_info.jetton
     E = win_per * odds
+
+    c = random.random()
+    action = ""
+
+    action_probability_array = [
+            [0.95, 0.96, 0.1],
+            [0.80, 0.05, 0.15],
+            [0.10, 0.55, 0.35],
+            [0.02, 0.30, 0.70] ]
+
+    if E < 0.8:
+        action_prob = action_probability_array[0]
+    elif E < 1.0:
+        action_prob = action_probability_array[1]
+    elif E < 1.3:
+        action_prob = action_probability_array[2]
+    else:
+        action_prob = action_probability_array[3]
+
+    if c < action_prob[0]:
+        return 'fold'
+    elif c < action_prob[1]:
+        return 'call'
+    else c < action_prob[2]:
+        return 'raise 1'
 
 ################################################################################
 
