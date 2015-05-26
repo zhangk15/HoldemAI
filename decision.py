@@ -351,6 +351,8 @@ def make_probability_estimate(win_per, total_info):
     odds = float(total_info.total + total_info.call_jetton) / total_info.call_jetton
     E = win_per * odds
 
+    print 'DECISION:\twin_per:%d odds:%d E:%d total:%d call:%d' % (win_per, odds, E, total_info.total, total_info.call_jetton)
+
     c = random.random()
     p = calc_fold_probability(E)
     if c < p:
