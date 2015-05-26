@@ -321,7 +321,7 @@ def probability(start, public, opponent_num, value_map, iterate=1000):
 
 ################################################################################
 
-def make_decision(win_per, total_info):
+def make_probability_estimate(win_per, total_info):
     own_info = total_info.player_list[total_info.self_id]
 
     odds = float(own_info.total + own_info.call_jetton) / own_info.jetton
@@ -351,6 +351,18 @@ def make_decision(win_per, total_info):
         return 'call'
     else c < action_prob[2]:
         return 'raise 1'
+
+def make_decision(start, public, total_info):
+    global value_map
+    global head_table
+
+    start = transfer_raw_card(start)
+    public = transfer_raw_card(public)
+
+    win_per = probability(start, public, 7, value_map)
+    action = make_probability_estimate(win_per, total_info) 
+
+    return action
 
 ################################################################################
 
