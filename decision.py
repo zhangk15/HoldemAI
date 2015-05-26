@@ -9,8 +9,6 @@ import random
 import operator
 import pickle
 
-import com_model
-
 HIGH_CARD   = 0
 ONE_PAIR    = 1
 TWO_PAIRS   = 2
@@ -21,7 +19,7 @@ FULL_HOUSE  = 6
 FOUR_KIND   = 7
 STRAIGHT_FLUSH = 8
 
-card_map = {
+cards_map = {
         '2':0, '3':1, '4':2,
         '5':4, '6':5, '7':6,
         '8':7, '9':8, '10':8,
@@ -42,7 +40,6 @@ suits_map = {
         'CLUBS':4,
         'DIAMONDS':8 }
 
-g_count = 0
 ################################################################################
 
 def is_suited(five_suits):
@@ -281,7 +278,6 @@ def random_card(hold):
 
 def choose_best_value(seven_cards, value_map):
     from itertools import combinations
-    global g_count
 
     max_value = -1
     for five in combinations(seven_cards, 5):
@@ -289,10 +285,9 @@ def choose_best_value(seven_cards, value_map):
         product = (rank_to_primer[five[0][0]] * rank_to_primer[five[1][0]] * rank_to_primer[five[2][0]]
                     * rank_to_primer[five[3][0]] * rank_to_primer[five[4][0]])
         if suited:
-            max_value = max(max_value, value_map[0][product])
+            max_value = max(max_value, value_map[0].get(product,-1))
         else:
-            max_value = max(max_value, value_map[1][product]) 
-        g_count += 1
+            max_value = max(max_value, value_map[1].get(product,-1)) 
     return max_value
 
 def probability(start, public, opponent_num, value_map, iterate=1000):
@@ -321,36 +316,57 @@ def probability(start, public, opponent_num, value_map, iterate=1000):
 
 ################################################################################
 
+#def calc_fold_probability(win_per, total_info):
+def calc_fold_probability(E):
+    if E < 0.8:
+        return 0.95
+    elif E < 1.0:
+        return 0.80
+    elif E < 1.3:
+        return 0.10
+    else:
+        return 0.02
+
+#def calc_call_probability(win_per, total_info):
+def calc_call_probability(E):
+    if E < 0.8:
+        return 0.01
+    elif E < 1.0:
+        return 0.05
+    elif E < 1.3:
+        return 0.55
+    else:
+        return 0.35
+
+#def calc_raise_jetton(win_per, total_info):
+def calc_raise_jetton(E):
+    if E < 0.8:
+        return 1
+    elif E < 1.0:
+        return 1
+    elif E < 1.3:
+        return 40 * E
+    else:
+        return 100 * E 
+
 def make_probability_estimate(win_per, total_info):
     own_info = total_info.player_list[total_info.self_id]
 
-    odds = float(own_info.total + own_info.call_jetton) / own_info.jetton
+    odds = float(total_info.total + total_info.call_jetton) / total_info.call_jetton
     E = win_per * odds
 
     c = random.random()
-    action = ""
-
-    action_probability_array = [
-            [0.95, 0.96, 0.1],
-            [0.80, 0.05, 0.15],
-            [0.10, 0.55, 0.35],
-            [0.02, 0.30, 0.70] ]
-
-    if E < 0.8:
-        action_prob = action_probability_array[0]
-    elif E < 1.0:
-        action_prob = action_probability_array[1]
-    elif E < 1.3:
-        action_prob = action_probability_array[2]
-    else:
-        action_prob = action_probability_array[3]
-
-    if c < action_prob[0]:
+    p = calc_fold_probability(E)
+    if c < p:
         return 'fold'
-    elif c < action_prob[1]:
+
+    c += p
+    p = calc_call_probability(E)
+    if c < p:
         return 'call'
-    else c < action_prob[2]:
-        return 'raise 1'
+
+    raise_jetton = calc_raise_jetton(E)
+    return 'raise ' + str(raise_jetton)
 
 def make_decision(start, public, total_info):
     global value_map
@@ -386,6 +402,4 @@ if __name__ == '__main__':
 
     #print start_probability(start, 7, head_table)
     #print probability(start, [], 7, value_map)
-
-    print g_count
 
