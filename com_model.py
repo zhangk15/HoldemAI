@@ -32,7 +32,6 @@ class game_link:
 			print("cannot recv!")
 			print(msg)
 			return ""
-
 		return str(buf) #, encoding = 'ascii')
 
 	def link_start(self):
@@ -63,17 +62,15 @@ class game_link:
 		self.__send('reg: ' + str(pid) + ' ' + pname + ' \n')
 
 	def msg_action(self, action):
-		self.__send('check ' + action + '\n')
+		self.__send(action + '\n')
 	
 	def get_msg(self):
 		if len(self.__msg_queue) == 0:
 			raw_msg = self.__recv()
-			print('RAW_MSG:')
-			print(raw_msg)
+			#print('RAW_MSG:')
+			#print(raw_msg)
 			temp = com_handle.patten_head.findall(raw_msg)
-			#print('MEG_QUEUE_ADD:')
 			for one_msg in temp:
-				#print(one_msg)
 				self.__msg_queue.append(one_msg)
 
 		if len(self.__msg_queue) != 0:
@@ -81,10 +78,128 @@ class game_link:
 		else:
 			return ('','','','')
 
-def main(argv):
-	#for arg in argv:
-	#	print(arg)
+class player_info:
+	def __init__(self):
+		self.reset((0, 0, 0))
+		self.actions = []
+		self.history = []
 
+	def __str__(self):
+		return str(self.pid) + ': ' + str(self.jetton) + ' ' + str(self.money) + str(self.actions)
+
+	def reset(self, info):
+		self.pid = int(info[0])
+		self.jetton = int(info[1])
+		self.money = int(info[2])
+		self.bet = 0
+		self.cards = []
+
+	def add_action(self, action):
+		if action == 'raise':
+			pass
+		self.actions.append(action)
+		
+class game_info:
+	def __init__(self, pid, game_conn):
+		self.reset()
+		self.player_list = {}
+		self.history = []
+		self.__is_new_game = True
+		self.self_id = pid
+		self.game_conn = game_conn
+
+	def reset(self):
+		self.total = 0
+		self.blind = 0
+		self.call_jetton = 0
+		self.min_raise = 0
+		self.common_card = []
+		
+def game_seat(msg, game):
+	player = player_info()
+	seats = com_handle.patten_seat.findall(msg)
+	for seat in seats:
+		if self.__is_new_game:
+			player.reset(seat)
+			game.player_list[player.pid] = player
+			player = player_info()
+		else:
+			game.player_list[int(seat[0])].reset(seat)
+	
+	self.__is_new_game = False
+
+	for item in game.player_list.values():
+		print(str(item))
+
+def game_blind(msg, game):
+	blinds = com_handle.get_bet(msg)
+	game.blind == blinds[0][1]
+	for one_blind in blinds:
+		game.total += int(one_blind[1])
+
+def game_get_card(msg, game):
+	for card in msg:
+		if len(msg) == 2:
+			game.player_list[game.self_id].cards.append(card)
+		else:
+			game.common_card.append(card)
+
+def game_player_info(msg, game):
+	players = (com_handle.get_userinfo(msg))
+	d_jetton = 0
+	d_money = 0
+	for player in players:
+		d_money = game.player_list[int(player[0])].money - int(player[2])
+		d_jetton = game.player_list[int(player[0])].jetton - int(player[1])
+
+		game.player_list[int(player[0])].jetton = int(player[1])
+		game.player_list[int(player[0])].money = int(player[2])
+		game.player_list[int(player[0])].bet = int(player[3])
+		game.player_list[int(player[0])].actions.append((player[4], d_money + d_jetton))
+		print(game.player_list[int(player[0])])
+	
+	game.total = int(com_handle.patten_inquire_total.findall(msg)[0])
+	print(msg)
+	print(game.total)	
+		
+def game_action(msg, game):
+	game_player_info(msg, game)
+	#get action
+	game.game_conn.msg_action('fold')
+	pass
+
+def game_showdown(msg, game):
+	results = com_handle.patten_shutdown_rank.findall(msg)
+	
+	for one in results:
+		game.paleyer_list[one[1]].history.append(one)
+
+def game_pot_win(msg, game)
+	winners = com_handle.get_bet(raw_msg[2])
+	for winner in winners:
+		game.history.append((int(winner[0]), int(winnner[1])))
+	
+
+game_func['seat'] = game_seat
+game_func['blind'] = game_blind
+game_func['hold'] = game_get_card
+game_func['flop'] = game_get_card
+game_func['turn'] = game_get_card
+game_func['river'] = game_get_card
+game_func['notify'] = game_player_info
+game_func['inquire'] = game_action
+game_func['showdown'] = game_show_down
+game_func['pot-win'] = game_pot_win
+
+def game_loop(game_conn, pid):
+	game = game_info(pid, game_coon)
+
+	raw_msg = game_conn.get_msg()
+	while raw_msg[0] != 'game-over \n' or len(raw_msg[0]) == 0:
+		game_func[raw_msg[1]](raw_msg[2], game)
+	game.reset()
+
+def main(argv):
 	try:
 		target_addr = (argv[1], int(argv[2]))
 		self_addr = (argv[3], int(argv[4]))
@@ -97,10 +212,11 @@ def main(argv):
 	if not game_conn.link_start():
 		print("Can't connect")
 		return
-	game_conn.msg_reg(argv[5], 'HL')
+	game_conn.msg_reg(pid, 'HL')
 	print("Connected. Game will start soon!!!")	
 
-	raw_msg = game_conn.get_msg()
+	game_loop(game_conn, int(pid))
+	'''raw_msg = game_conn.get_msg()
 	while raw_msg[0] != 'game-over \n' or len(raw_msg[0]) == 0:
 		print("seat:")
 		print(com_handle.patten_seat.findall(raw_msg[2]))
@@ -125,7 +241,7 @@ def main(argv):
 			print("users action:")
 			#print(raw_msg)
 			print(com_handle.get_userinfo(raw_msg[2]))
-			game_conn.msg_action('fold')
+			game_conn.msg_action('all_in')
 			print('')
 
 			raw_msg = game_conn.get_msg()
@@ -139,7 +255,7 @@ def main(argv):
 			print("users action:")
 			#print(raw_msg)
 			print(com_handle.get_userinfo(raw_msg[2]))
-			game_conn.msg_action('fold')
+			game_conn.msg_action('all_in')
 			print('')
 
 			raw_msg = game_conn.get_msg()
@@ -153,7 +269,7 @@ def main(argv):
 			print("users action:")
 			#print(raw_msg)
 			print(com_handle.get_userinfo(raw_msg[2]))
-			game_conn.msg_action('fold')
+			game_conn.msg_action('all_in')
 			print('')
 			
 			raw_msg = game_conn.get_msg()
@@ -167,7 +283,7 @@ def main(argv):
 			print("users action:")
 			#print(raw_msg)
 			print(com_handle.get_userinfo(raw_msg[2]))
-			game_conn.msg_action('fold')
+			game_conn.msg_action('all_in')
 			print('')
 	
 			raw_msg = game_conn.get_msg()
@@ -179,13 +295,12 @@ def main(argv):
 	
 		raw_msg = game_conn.get_msg()
 		print("win:")
-		print(raw_msg)
+		#print(raw_msg)
 		print(com_handle.get_bet(raw_msg[2]))
 		print('')
 
-		raw_msg = game_conn.get_msg()
+		raw_msg = game_conn.get_msg()'''
 	print("\nGame over!")
-
 
 if __name__ == '__main__':
 	main(sys.argv)
