@@ -316,18 +316,43 @@ def probability(start, public, opponent_num, value_map, iterate=1000):
 
 ################################################################################
 
+class Evaluation:
+    def __init__(self):
+        self.E = 0.0
+        self.win_per = 0.0
+        self.odds = 0.0
+        self.jetton = 0.0
+
 #def calc_fold_probability(win_per, total_info):
-def calc_fold_probability(E):
+def calc_fold_base(E):
     if E < 0.6:
         return 1.0
     elif E < 1.0:
-        return 1.0 - (E-0.6) * 0.25
+        return 1.0 - (E-0.6) * 0.5
     elif E < 1.25:
-        return 1.0 / ((E - 1.0) * 40.0 + 0.11)
+        return 1 / ((E - 1.0)*40.0 + 0.11)
     elif E < 1.75:
         return 0.1 - (E - 1.25) * 0.2
     else:
         return 0.0
+
+def calc_fold_probability(evaluation, total_info):
+    # calc the base probability 
+    p = calc_fold_base(evaluation.E)
+
+    # protect the jetton
+    cost_rate = float(total_info.call_jetton) / evaluation.jetton
+    if (evaluation.jetton > 1000 and cost_rate > 0.75 and 
+            (evaluation.win_per < 0.5 or evaluation.E < 1.25)):
+        p = 1.0
+
+    if (0 == evaluation.current_round):
+        p *= 0.75
+
+    if (3 == evaluation.current_round and evaluation.E < 1.0):
+        p *= 1.5
+
+    return p
 
 #def calc_call_probability(win_per, total_info):
 def calc_call_probability(E):
@@ -345,25 +370,33 @@ def calc_raise_jetton(E):
     else:
         return E * 40
 
-def make_probability_estimate(win_per, total_info):
+def make_probability_estimate(evaluation, total_info):
     own_info = total_info.player_list[total_info.self_id]
 
-    odds = float(total_info.total + total_info.call_jetton) / total_info.call_jetton
-    E = win_per * odds
+    evaluation.odds = float(total_info.total + total_info.call_jetton) / total_info.call_jetton
+    evaluation.E = evaluation.win_per * evaluation.odds
+    evaluation.jetton = own_info.jetton
 
-    print 'DECISION:\twin_per:%d odds:%d E:%d total:%d call:%d' % (win_per, odds, E, total_info.total, total_info.call_jetton)
+    print 'DECISION:\twin_per:%f odds:%f E:%f total:%d call:%d' % (
+            evaluation.win_per, 
+            evaluation.odds, 
+            evaluation.E, 
+            total_info.total, 
+            total_info.call_jetton)
+
+    # make the strategy
 
     c = random.random()
-    p = calc_fold_probability(E)
+    p = calc_fold_probability(evaluation, total_info)
     if c < p:
         return 'fold'
 
     c = random.random()
-    p = calc_call_probability(E)
+    p = calc_call_probability(evaluation.E)
     if c < p:
         return 'call'
 
-    raise_jetton = calc_raise_jetton(E)
+    raise_jetton = calc_raise_jetton(evaluation.E)
     return 'raise ' + str(raise_jetton)
 
 def make_decision(start, public, total_info):
@@ -373,8 +406,19 @@ def make_decision(start, public, total_info):
     start = transfer_raw_card(start)
     public = transfer_raw_card(public)
 
-    win_per = probability(start, public, 7, value_map)
-    action = make_probability_estimate(win_per, total_info) 
+    evaluation = Evaluation()
+
+    if 0 == len(public):
+        evaluation.current_round = 0
+    elif 3 == len(public):
+        evaluation.current_round = 1
+    elif 4 == len(public):
+        evaluation.current_round = 2
+    elif 5 == len(public):
+        evaluation.current_round = 3
+    
+    evaluation.win_per = probability(start, public, len(total_info.opponents), value_map)
+    action = make_probability_estimate(evaluation, total_info) 
 
     return action
 
@@ -385,7 +429,7 @@ head_table = pickle.load(open('head_table', 'rb'))
 
 if __name__ == '__main__':
 
-    start = [(11, 1), (8, 2)]
+    start = [(11, 4), (11, 1)]
     public = [(0, 1), (3, 4), (5, 8), (7, 4), (9, 8)]
 
     import time
@@ -398,7 +442,23 @@ if __name__ == '__main__':
     print 'probability', probability(start, public, 7, value_map, 1000)
     print time.clock() - old_clock
 
-    #print start_probability(start, 7, head_table)
-    #print probability(start, [], 7, value_map)
+    raw_start = [('SPADES', 'A'), ('HEARTS', 'K')]
 
-    #print make_probability_estimate(0, 0)
+    import com_model
+
+    player = com_model.player_info()
+    player.jetton   = 1950
+    player.money    = 8000
+    player.bet      = 50
+
+    total_info = com_model.game_info(None, None)
+    total_info.player_list  = { 8888:player }
+    total_info.self_id      = 8888
+    total_info.total        = 2000
+    total_info.blind        = 50
+    total_info.call_jetton  = 100
+    total_info.min_raise    = 200
+    total_info.common_card  = [('HEART', 'A'), ('HEART', 'K'), ('HEART', 'Q')]
+    total_info.opponents    = [0] * 7
+
+    make_decision(raw_start, [], total_info)
