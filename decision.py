@@ -325,14 +325,14 @@ class Evaluation:
 
 #def calc_fold_probability(win_per, total_info):
 def calc_fold_base(E):
-    if E < 0.6:
+    if E < 0.8:
         return 1.0
     elif E < 1.0:
-        return 1.0 - (E-0.6) * 0.5
-    elif E < 1.25:
-        return 1 / ((E - 1.0)*40.0 + 0.11)
-    elif E < 1.75:
-        return 0.1 - (E - 1.25) * 0.2
+        return 1.0 - (E-0.8)
+    elif E < 1.1:
+        return 0.8 - (E-1.0)*6.0
+    elif E < 1.3:
+        return 0.2 - (E-1.1)
     else:
         return 0.0
 
@@ -343,13 +343,16 @@ def calc_fold_probability(evaluation, total_info):
     # protect the jetton
     cost_rate = float(total_info.call_jetton) / evaluation.jetton
     if (evaluation.jetton > 2000 and cost_rate > 0.75 and 
-            (evaluation.win_per < 0.4 or evaluation.E < 1.0)):
+            (evaluation.win_per < 0.3 or evaluation.E < 1.0)):
         p = 1.0
 
     if (0 == evaluation.current_round and evaluation.win_per > 0.5):
+        p *= 0.85
+
+    if (0 == evaluation.current_round and evaluation.win_per > 0.7):
         p *= 0.75
 
-    if (3 == evaluation.current_round and evaluation.E < 1.0):
+    if (3 == evaluation.current_round and evaluation.win_per < 0.3 and evaluation.E < 1.0):
         p *= 1.5
 
     return p
@@ -433,13 +436,13 @@ head_table = pickle.load(open('head_table', 'rb'))
 
 if __name__ == '__main__':
 
-    start = [(11, 4), (1, 4)]
-    public = [(0, 1), (3, 4), (5, 8), (7, 4), (9, 8)]
+    start = [(12, 4), (7, 1)]
+    public = [(9, 4), (8, 1), (0, 8)]
 
     import time
 
     old_clock = time.clock()
-    print 'probability', probability(start, [], 7, value_map, 1000)
+    print 'probability', probability(start, [], 2, value_map, 1000)
     print time.clock() - old_clock
 
     old_clock = time.clock()
@@ -463,6 +466,6 @@ if __name__ == '__main__':
     total_info.call_jetton  = 100
     total_info.min_raise    = 200
     total_info.common_card  = [('HEART', 'A'), ('HEART', 'K'), ('HEART', 'Q')]
-    total_info.opponents    = [0] * 7
+    total_info.opponents    = [0] * 3
 
     make_decision(raw_start, [], total_info)
