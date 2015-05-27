@@ -342,11 +342,11 @@ def calc_fold_probability(evaluation, total_info):
 
     # protect the jetton
     cost_rate = float(total_info.call_jetton) / evaluation.jetton
-    if (evaluation.jetton > 1000 and cost_rate > 0.75 and 
-            (evaluation.win_per < 0.5 or evaluation.E < 1.25)):
+    if (evaluation.jetton > 2000 and cost_rate > 0.75 and 
+            (evaluation.win_per < 0.4 or evaluation.E < 1.0)):
         p = 1.0
 
-    if (0 == evaluation.current_round):
+    if (0 == evaluation.current_round and evaluation.win_per > 0.5):
         p *= 0.75
 
     if (3 == evaluation.current_round and evaluation.E < 1.0):
@@ -355,11 +355,14 @@ def calc_fold_probability(evaluation, total_info):
     return p
 
 #def calc_call_probability(win_per, total_info):
-def calc_call_probability(E):
-    if E < 1.0:
+def calc_call_probability(evaluation, total_info):
+    if evaluation.bet > 1000:
         return 1.0
-    elif E < 1.5:
-        return 2.0 - E
+
+    if evaluation.E < 1.0:
+        return 1.0
+    elif evaluation.E < 1.5:
+        return 2.0 - evaluation.E
     else:
         return 0.5
 
@@ -376,8 +379,9 @@ def make_probability_estimate(evaluation, total_info):
     evaluation.odds = float(total_info.total + total_info.call_jetton) / total_info.call_jetton
     evaluation.E = evaluation.win_per * evaluation.odds
     evaluation.jetton = own_info.jetton
+    evaluation.bet = own_info.bet
 
-    print 'DECISION:\twin_per:%f odds:%f E:%f total:%d call:%d' % (
+    print 'DECISION: win_per:%f odds:%f E:%f total:%d call:%d' % (
             evaluation.win_per, 
             evaluation.odds, 
             evaluation.E, 
@@ -392,7 +396,7 @@ def make_probability_estimate(evaluation, total_info):
         return 'fold'
 
     c = random.random()
-    p = calc_call_probability(evaluation.E)
+    p = calc_call_probability(evaluation, total_info)
     if c < p:
         return 'call'
 
@@ -429,7 +433,7 @@ head_table = pickle.load(open('head_table', 'rb'))
 
 if __name__ == '__main__':
 
-    start = [(11, 4), (11, 1)]
+    start = [(11, 4), (1, 4)]
     public = [(0, 1), (3, 4), (5, 8), (7, 4), (9, 8)]
 
     import time
