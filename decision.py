@@ -337,6 +337,11 @@ def calc_fold_base(E):
         return 0.0
 
 def calc_fold_probability(evaluation, total_info):
+    if evaluation.E < 1.0:
+        return 1
+    else:
+        return 0
+
     # calc the base probability 
     p = calc_fold_base(evaluation.E)
 
@@ -362,10 +367,10 @@ def calc_call_probability(evaluation, total_info):
     if evaluation.bet > 1000:
         return 1.0
 
-    if evaluation.E < 1.0:
+    if evaluation.E < 1.5:
         return 1.0
-    elif evaluation.E < 1.5:
-        return 2.0 - evaluation.E
+    elif evaluation.E < 2.5:
+        return 1.0 - 0.5 * (evaluation.E - 1.5)
     else:
         return 0.5
 
@@ -374,12 +379,17 @@ def calc_raise_jetton(E):
     if E < 1.0:
         return 1.0
     else:
-        return E * 40
+        return E * 100
 
 def make_probability_estimate(evaluation, total_info):
     own_info = total_info.player_list[total_info.self_id]
 
     evaluation.odds = float(total_info.total + total_info.call_jetton) / total_info.call_jetton
+    odds_estimate = 0.25*len(total_info.opponents) + 1.75
+    if odds_estimate > evaluation.E:
+        evaluation.odds = odds_estimate
+        print 'ESTIMATE: ', odds_estimate
+    #evaluation.odds = max(evaluation.odds, 0.25*len(total_info.opponents)+1.75)
     evaluation.E = evaluation.win_per * evaluation.odds
     evaluation.jetton = own_info.jetton
     evaluation.bet = own_info.bet
@@ -436,13 +446,13 @@ head_table = pickle.load(open('head_table', 'rb'))
 
 if __name__ == '__main__':
 
-    start = [(12, 4), (7, 1)]
+    start = [(12, 4), (8, 4)]
     public = [(9, 4), (8, 1), (0, 8)]
 
     import time
 
     old_clock = time.clock()
-    print 'probability', probability(start, [], 2, value_map, 1000)
+    print 'probability', probability(start, [], 7, value_map, 1000)
     print time.clock() - old_clock
 
     old_clock = time.clock()
