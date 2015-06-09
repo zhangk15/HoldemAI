@@ -54,10 +54,10 @@ def choose_best_value(seven_cards, value_map):
 
         if -1 == value:
             logging.warning('There is a suit which do not match any pattern')
-            print len(value_map[0])
-            print len(value_map[1])
-            print five
-            raw_input()
+            #print len(value_map[0])
+            #print len(value_map[1])
+            #print five
+            #raw_input()
             # TODO
     
         if value > max_value:
@@ -216,7 +216,7 @@ def make_decision(start, public, total_info):
 #------------------------------------------------------------------------------#
 
 def decision_test():
-    start = [(12, 4), (8, 4)]
+    start = [(11, 4), (11, 1)]
     public = [(9, 4), (8, 1), (0, 8)]
 
     import time
@@ -261,5 +261,6 @@ print len(value_map[1])
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
+    decision_test()
 
 #------------------------------------------------------------------------------#
